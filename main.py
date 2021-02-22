@@ -25,7 +25,7 @@ df.drop(df.query('Location.isnull() | Status.isnull()').index, inplace=True)
 
 # Step 3. Specify the columns we would like to import
 # Traffic Report ID,Published Date,Issue Reported,Location,Latitude,Longitude,Address,Status,Status Date
-columns = ['Traffic Report ID', 'Published Date', 'Issue Reported', 'Location', 'Latitude', 'Longitude', 'Address', 'Status', 'Status Date']
+columns = ['Traffic Report ID', 'Published Date', 'Issue Reported', 'Location', 'Address', 'Status', 'Status Date']
 
 df_data = df[columns]
 records = df_data.values.tolist()
@@ -37,17 +37,44 @@ SERVER_NAME = 'bncsql'
 DATABASE_NAME = 'bncSqlCV'
 
 def connection_string(driver, server_name, database_name):
-    conn_string = f''''
-        DRIVER={{driver}};
+    conn_string = f"""
+        DRIVER={{{driver}}};
         SERVER={server_name};
         DATABASE={database_name};
-        Trust_Connection=yes;
-    '''
+        Trust_Connection=yes;        
+    """
     return conn_string
 
-print(connection_string(DRIVER, SERVER_NAME, DATABASE_NAME))
+"""
+Step 4.2 Create database connection instance
+"""
+try:
+    conn = odbc.connect(connection_string(DRIVER, SERVER_NAME, DATABASE_NAME))
+except odbc.DatabaseError as e:
+    print('Database Error:')    
+    print(str(e.value[1]))
+except odbc.Error as e:
+    print('Connection Error:')
+    print(str(e.value[1]))
 
-#
-# Step 4.1 Create db connection instance
-#  
 
+"""
+Step 4.3 Create a cursor connection and insert records
+"""
+
+sql_insert = '''
+    INSERT INTO Austin_Traffic_Incident 
+    VALUES (?, ?, ?, ?, ?, ?, ?, GETDATE())
+'''
+
+try:
+    cursor = conn.cursor()
+    cursor.executemany(sql_insert, records)
+    cursor.commit();    
+except Exception as e:
+    cursor.rollback()
+    print(str(e[1]))
+finally:
+    print('Task is complete.')
+    cursor.close()
+    conn.close()
